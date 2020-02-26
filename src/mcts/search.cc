@@ -1339,11 +1339,14 @@ void SearchWorker::DoBackupUpdateSingleNode(
 
     // A non-winning terminal move needs all other moves to be similar.
     auto all_losing = true;
+    float losing_m = 0.0f;
     if (can_convert && v <= 0.0f) {
       for (const auto& edge : p->Edges()) {
         const auto WL = edge.GetWL();
         can_convert = can_convert && edge.IsTerminal() && WL <= 0.0f;
+        if (!can_convert) break;
         all_losing = all_losing && WL < 0.0f;
+        losing_m = std::max(losing_m, edge.GetM(0.0f));
       }
     }
 
@@ -1351,9 +1354,14 @@ void SearchWorker::DoBackupUpdateSingleNode(
     // to a terminal win if all moves are losing; otherwise there's a mix of
     // draws and losing, so at best it's a draw.
     if (can_convert) {
+      // Doesn't give the correct distance to mate because siblings are not
+      // considered, but more accurate than doing nothing. Still often very
+      // accurate when reasonable moves are expanded first.
+      float terminal_m;
+      terminal_m = std::max(losing_m, m) + 1;
       p->MakeTerminal(v > 0.0f ? GameResult::BLACK_WON
                                : all_losing ? GameResult::WHITE_WON
-                                            : GameResult::DRAW, false);
+                                            : GameResult::DRAW, terminal_m);
     }
 
     // Q will be flipped for opponent.
