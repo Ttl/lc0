@@ -1063,13 +1063,19 @@ void SearchWorker::ExtendNode(Node* node) {
       // Only fail state means the WDL is wrong, probe_wdl may produce correct
       // result with a stat other than OK.
       if (state != FAIL) {
+        // TB nodes don't have NN evaluation, assign M from parent node.
+        float m = 0.0f;
+        auto parent = node->GetParent();
+        if (parent) {
+          m = std::max(0.0f, parent->GetM() - 1.0f);
+        }
         // If the colors seem backwards, check the checkmate check above.
         if (wdl == WDL_WIN) {
-          node->MakeTerminal(GameResult::BLACK_WON);
+          node->MakeTerminal(GameResult::BLACK_WON, m);
         } else if (wdl == WDL_LOSS) {
-          node->MakeTerminal(GameResult::WHITE_WON);
+          node->MakeTerminal(GameResult::WHITE_WON, m);
         } else {  // Cursed wins and blessed losses count as draws.
-          node->MakeTerminal(GameResult::DRAW);
+          node->MakeTerminal(GameResult::DRAW, m);
         }
         search_->tb_hits_.fetch_add(1, std::memory_order_acq_rel);
         return;
