@@ -175,7 +175,7 @@ class Search {
   int64_t total_playouts_ GUARDED_BY(nodes_mutex_) = 0;
   // Maximum search depth = length of longest path taken in PickNodetoExtend.
   uint16_t max_depth_ GUARDED_BY(nodes_mutex_) = 0;
-  // Cummulative depth of all paths taken in PickNodetoExtend.
+  // Cumulative depth of all paths taken in PickNodetoExtend.
   uint64_t cum_depth_ GUARDED_BY(nodes_mutex_) = 0;
   std::optional<std::chrono::steady_clock::time_point> nps_start_time_;
   std::atomic<int> tb_hits_{0};
@@ -194,9 +194,11 @@ class Search {
 class SearchWorker {
  public:
   SearchWorker(Search* search, const SearchParams& params)
-      : search_(search), history_(search_->played_history_), params_(params),
-        moves_left_support_(search_->network_->GetCapabilities().moves_left
-          != pblczero::NetworkFormat::MOVES_LEFT_NONE) {}
+      : search_(search),
+        history_(search_->played_history_),
+        params_(params),
+        moves_left_support_(search_->network_->GetCapabilities().moves_left !=
+                            pblczero::NetworkFormat::MOVES_LEFT_NONE) {}
 
   // Runs iterations while needed.
   void RunBlocking() {
@@ -261,7 +263,7 @@ class SearchWorker {
     float v;
     // Draw probability for NN's with WDL value head.
     float d;
-    // Estimated remaining moves left.
+    // Estimated remaining plies left.
     float m;
     int multivisit = 0;
     uint16_t depth;
@@ -304,7 +306,7 @@ class SearchWorker {
   int number_out_of_order_ = 0;
   const SearchParams& params_;
   std::unique_ptr<Node> precached_node_;
-  bool moves_left_support_;
+  const bool moves_left_support_;
   IterationStats iteration_stats_;
   StoppersHints latest_time_manager_hints_;
 };
