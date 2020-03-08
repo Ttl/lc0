@@ -26,11 +26,11 @@
 */
 
 #include "selfplay/loop.h"
-#include "neural/encoder.h"
-#include "neural/writer.h"
 
 #include <optional>
 
+#include "neural/encoder.h"
+#include "neural/writer.h"
 #include "selfplay/tournament.h"
 #include "utils/configfile.h"
 #include "utils/filesystem.h"

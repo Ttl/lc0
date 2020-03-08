@@ -55,7 +55,7 @@ gen = generator(compile_proto, output: ['@BASENAME@.pb.h'],
 
 # Handle submodules.
 git = find_program('git', required: false)
-if run_command('checkdir.py', 'libs/lczero-common/proto').returncode() != 0
+if run_command('scripts/checkdir.py', 'libs/lczero-common/proto').returncode() != 0
   if git.found()
     if run_command(git, 'status').returncode() == 0
       message('updating git submodule libs/lczero-common')
@@ -73,7 +73,8 @@ endif
 
 pb_files = [
   'src/utils/protomessage.cc',
-  gen.process('libs/lczero-common/proto/net.proto')
+  gen.process('libs/lczero-common/proto/net.proto',
+    preserve_path_from : meson.current_source_dir() + '/libs/lczero-common/')
 ]
 files += pb_files
 
@@ -105,6 +106,7 @@ message('Using build identifier "' + build_identifier + '".')
 files += [
   'src/engine.cc',
   'src/version.cc',
+  'src/benchmark/backendbench.cc',
   'src/benchmark/benchmark.cc',
   'src/chess/bitboard.cc',
   'src/chess/board.cc',
@@ -418,7 +420,7 @@ if get_option('build_backends')
   if get_option('cudnn') and cu_blas.found() and cu_dnn.found() and cu_dart.found() and nvcc.found()
     deps += [cu_blas, cu_dnn, cu_dart]
     foreach d : get_option('cudnn_include')
-      if run_command('checkdir.py', d).returncode() == 0
+      if run_command('scripts/checkdir.py', d).returncode() == 0
         includes += include_directories(d)
       endif
     endforeach
@@ -518,6 +520,10 @@ endif
 
 if not get_option('pext')
   add_project_arguments('-DNO_PEXT', language : 'cpp')
+endif
+
+if get_option('embed')
+  add_project_arguments('-DEMBED', language : 'cpp')
 endif
 
 executable('rescorer', 'src/main.cc',
