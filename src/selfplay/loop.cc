@@ -533,18 +533,48 @@ void ProcessFile(const std::string& file, SyzygyTablebase* tablebase,
             unsigned int info;
             unsigned int dtm;
             gaviota_tb_probe_hard(history.Last(), info, dtm);
-            if (info == tb_WMATE || info == tb_BMATE) {
-              gaviota_dtm_rescores++;
-              int j;
-              for (j = i; j >= -1; j--) {
-                if (j <= last_rescore) {
-                  break;
-                }
-                //std::cerr << j << " " << int(fileContents[j + 1].move_count) << " -> " << int(dtm + (i - j)) << std::endl;
-                fileContents[j + 1].move_count = std::min(255, int(dtm + (i - j)));
-              }
-              last_rescore = i;
+            if (info != tb_WMATE && info != tb_BMATE) {
+              // Not a win for either player.
+              continue;
             }
+            int steps = history.Last().GetNoCaptureNoPawnPly();
+            if ((dtm + steps > 99) && (dtm <= fileContents[i + 1].move_count)) {
+              // Following DTM could trigger 50 move rule and the current
+              // move_count is more than DTM.
+              // If DTM is more than the current move_count then we can rescore
+              // using it since DTM50 is not shorter than DTM.
+              continue;
+            }
+            bool no_reps = true;
+            for (int i = 0; i < steps; i++) {
+              // If game started from non-zero 50 move rule, this could
+              // underflow. Only safe option is to assume there were repetitions
+              // before this point.
+              if (history.GetLength() - i - 1 < 0) {
+                no_reps = false;
+                break;
+              }
+              if (history.GetPositionAt(history.GetLength() - i - 1)
+                      .GetRepetitions() != 0) {
+                no_reps = false;
+                break;
+              }
+            }
+            if (!no_reps) {
+              // There were repetitions. Do nothing since DTM path
+              // could trigger draw by repetition.
+              continue;
+            }
+            gaviota_dtm_rescores++;
+            int j;
+            for (j = i; j >= -1; j--) {
+              if (j <= last_rescore) {
+                break;
+              }
+              //std::cerr << j << " " << int(fileContents[j + 1].move_count) << " -> " << int(dtm + (i - j)) << std::endl;
+              fileContents[j + 1].move_count = std::min(255, int(dtm + (i - j)));
+            }
+            last_rescore = i;
           }
         }
       }
