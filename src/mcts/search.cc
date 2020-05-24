@@ -661,16 +661,26 @@ EdgeAndNode Search::GetBestRootChildWithTemperature(float temperature) const {
   const float fpu =
       GetFpu(params_, root_node_, /* is_root= */ true, draw_score);
 
+  bool winning_terminal = false;
   for (auto edge : root_node_->Edges()) {
     if (!root_move_filter_.empty() &&
         std::find(root_move_filter_.begin(), root_move_filter_.end(),
                   edge.GetMove()) == root_move_filter_.end()) {
       continue;
     }
+    winning_terminal |= (edge.IsTerminal() && edge.GetWL(0.0f) > 0.0f);
+    // Ignore certain losing moves if there are other choices.
+    if (edge.IsTerminal() && edge.GetWL(0.0f) < 0.0f) continue;
     if (edge.GetN() + offset > max_n) {
       max_n = edge.GetN() + offset;
       max_eval = edge.GetQ(fpu, draw_score, /* logit_q= */ false);
     }
+  }
+
+  if (winning_terminal) {
+    // There exists a certain winning move. Play it instead of potentially
+    // changing the game outcome.
+    return GetBestChildNoTemperature(root_node_, 0);
   }
 
   // No move had enough visits for temperature, so use default child criteria
@@ -685,6 +695,7 @@ EdgeAndNode Search::GetBestRootChildWithTemperature(float temperature) const {
                   edge.GetMove()) == root_move_filter_.end()) {
       continue;
     }
+    if (edge.IsTerminal() && edge.GetWL(0.0f) < 0.0f) continue;
     if (edge.GetQ(fpu, draw_score, /* logit_q= */ false) < min_eval) continue;
     sum += std::pow(
         std::max(0.0f, (static_cast<float>(edge.GetN()) + offset) / max_n),
@@ -704,6 +715,7 @@ EdgeAndNode Search::GetBestRootChildWithTemperature(float temperature) const {
                   edge.GetMove()) == root_move_filter_.end()) {
       continue;
     }
+    if (edge.IsTerminal() && edge.GetWL(0.0f) < 0.0f) continue;
     if (edge.GetQ(fpu, draw_score, /* logit_q= */ false) < min_eval) continue;
     if (idx-- == 0) return edge;
   }
