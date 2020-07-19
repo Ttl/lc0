@@ -260,6 +260,7 @@ class Move {
 
   explicit operator bool() const { return data_ != 0; }
   bool operator==(const Move& other) const { return data_ == other.data_; }
+  bool operator!=(const Move& other) const { return data_ != other.data_; }
 
   void Mirror() { data_ ^= 0b111000111000; }
 

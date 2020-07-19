@@ -224,7 +224,8 @@ class Node {
       GameResult result, const PositionHistory& history,
       FillEmptyHistory fill_empty_history,
       pblczero::NetworkFormat::InputFormat input_format, float best_q,
-      float best_d, float best_m) const;
+      float best_d, float best_m, std::vector<float> pibar_p,
+      std::vector<Move> pibar_moves, bool use_pibar) const;
 
   // Returns range for iterating over edges.
   ConstIterator Edges() const;

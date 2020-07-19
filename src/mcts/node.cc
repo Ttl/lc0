@@ -448,7 +448,8 @@ V5TrainingData Node::GetV5TrainingData(
     GameResult game_result, const PositionHistory& history,
     FillEmptyHistory fill_empty_history,
     pblczero::NetworkFormat::InputFormat input_format, float best_q,
-    float best_d, float best_m) const {
+    float best_d, float best_m, std::vector<float> pibar_p,
+    std::vector<Move> pibar_moves, bool use_pibar) const {
   V5TrainingData result;
 
   // Set version.
@@ -475,10 +476,17 @@ V5TrainingData Node::GetV5TrainingData(
   // Set illegal moves to have -1 probability.
   std::fill(std::begin(result.probabilities), std::end(result.probabilities),
             -1);
-  // Set moves probabilities according to their relative amount of visits.
-  for (const auto& child : Edges()) {
-    result.probabilities[child.edge()->GetMove().as_nn_index(transform)] =
-        total_n > 0 ? child.GetN() / static_cast<float>(total_n) : 1;
+  if (!use_pibar) {
+    // Set moves probabilities according to their relative amount of visits.
+    for (const auto& child : Edges()) {
+      result.probabilities[child.edge()->GetMove().as_nn_index(transform)] =
+          total_n > 0 ? child.GetN() / static_cast<float>(total_n) : 1;
+    }
+  } else {
+    for (size_t i = 0; i < pibar_moves.size(); i++) {
+      result.probabilities[pibar_moves[i].as_nn_index(transform)] =
+          pibar_p[i];
+    }
   }
 
   const auto& position = history.Last();

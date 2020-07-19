@@ -57,6 +57,12 @@ const OptionId kMinimumAllowedVistsId{
 const OptionId kUciChess960{
     "chess960", "UCI_Chess960",
     "Castling moves are encoded as \"king takes rook\"."};
+const OptionId kPolicyPiBar{
+    "pibar-learn", "PiBarLearn",
+    "PiBar policy training target."};
+const OptionId kPiBarTemperature{
+    "pibar-softmax-temperature", "PiBarSoftMaxTemperature",
+    "PiBar policy training target softmax temperature."};
 }  // namespace
 
 void SelfPlayGame::PopulateUciParams(OptionsParser* options) {
@@ -66,6 +72,8 @@ void SelfPlayGame::PopulateUciParams(OptionsParser* options) {
   options->Add<IntOption>(kResignEarliestMoveId, 0, 1000) = 0;
   options->Add<IntOption>(kMinimumAllowedVistsId, 0, 1000000) = 0;
   options->Add<BoolOption>(kUciChess960) = false;
+  options->Add<BoolOption>(kPolicyPiBar) = false;
+  options->Add<FloatOption>(kPiBarTemperature, 0.0f, 100.0f) = 1.0f;
   PopulateTimeManagementOptions(RunType::kSelfplay, options);
 }
 
@@ -144,12 +152,17 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
       const auto best_wl = best_eval.wl;
       const auto best_d = best_eval.d;
       const auto best_m = best_eval.ml;
+      const auto pibar_temp = options_[idx].uci_options->Get<float>(kPiBarTemperature)
+        / search_->GetParams().GetPolicySoftmaxTemp();
       const auto input_format =
           options_[idx].network->GetCapabilities().input_format;
+      const auto pibar = search_->GetPiBar(pibar_temp);
+
       training_data_.push_back(tree_[idx]->GetCurrentHead()->GetV5TrainingData(
           GameResult::UNDECIDED, tree_[idx]->GetPositionHistory(),
           search_->GetParams().GetHistoryFill(), input_format, best_wl, best_d,
-          best_m));
+          best_m, pibar.first, pibar.second,
+          options_[idx].uci_options->Get<bool>(kPolicyPiBar)));
     }
 
     float eval = best_eval.wl;

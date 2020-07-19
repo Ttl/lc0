@@ -565,6 +565,107 @@ void Search::ResetBestMove() {
   bestmove_is_sent_ = old_sent;
 }
 
+std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(float pibar_temp) {
+  const size_t root_moves = root_unnoised_p_.size();
+  assert(root_unnoised_moves.size() == root_moves);
+
+  std::vector<float> root_q;
+
+  const size_t total_n = root_node_->GetChildrenVisits();
+  const float draw_score = GetDrawScore(/* is_odd_depth= */ false);
+
+  // Populate Q in same order as p.
+  for (size_t i = 0; i < root_moves; i++) {
+    for (const auto& child : root_node_->Edges()) {
+      if (child.edge()->GetMove() != root_unnoised_moves_[i]) continue;
+      // Unvisited nodes are treated as losses.
+      root_q.push_back(child.GetQ(-1.0f, draw_score));
+      break;
+    }
+  }
+
+  // Undo search softmax and apply training softmax.
+
+  // Calculate maximum first.
+  float max_p = -std::numeric_limits<float>::infinity();
+  // Intermediate array to store values when processing policy.
+  // There are never more than 256 valid legal moves in any legal position.
+  std::array<float, 256> intermediate;
+  for (size_t i = 0; i < root_moves; i++) {
+    float p = root_unnoised_p_[i];
+    intermediate[i] = p;
+    max_p = std::max(max_p, p);
+  }
+  float total = 0.0;
+  for (size_t i = 0; i < root_moves; i++) {
+    // Perform softmax and take into account policy softmax temperature T.
+    // Note that we want to calculate (exp(p-max_p))^(1/T) = exp((p-max_p)/T).
+    float p = std::exp((intermediate[i] - max_p) / pibar_temp);
+    intermediate[i] = p;
+    total += p;
+  }
+  // Normalize P values to add up to 1.0.
+  const float scale = total > 0.0f ? 1.0f / total : 1.0f;
+  std::vector<float> root_unnoised_p(root_moves);
+  for (size_t i = 0; i < root_moves; i++) {
+    float p = intermediate[i] * scale;
+    root_unnoised_p[i] = total_n > 0 ? p : 1.0f;
+  }
+
+  const float lambdan = std::sqrt(total_n) / (root_moves + total_n);
+  int iterations = 0;
+
+  // `1 - Pibar` function for root finding.
+  auto piroot = [&lambdan, &root_unnoised_p, &root_q, &root_moves](float a) {
+    float pi = 0.0f;
+    for (size_t i = 0; i < root_moves; i++) {
+      pi += lambdan * root_unnoised_p[i] / (a - root_q[i]);
+    }
+    return 1.0f - pi;
+  };
+
+  // Find normalization constant `a` with bisection method.
+  const float max_q = (*std::max_element(std::begin(root_q), std::end(root_q)));
+  // `a` must be larger than max(Q).
+  float a0 = max_q + 1e-5f;
+  float a1 = 1.1f * std::abs(max_q);
+  float f1 = piroot(a1);
+  while (f1 < 0.0f) {
+    a1 *= 1.5f;
+    f1 = piroot(a1);
+  }
+
+  // Bisect to reasonable accuracy and normalize to one by dividing by the
+  // sum.
+  float a, fa;
+  while (iterations++ < 40) {
+    a = (a0 + a1) / 2.0f;
+    fa = piroot(a);
+    if (std::abs(fa) < 5e-3f) break;
+    if (fa > 0.0f) {
+      a1 = a;
+    } else {
+      a0 = a;
+    }
+  }
+
+  std::vector<float> pibar(root_moves);
+
+  if (std::abs(fa) > 1e-2f || std::isnan(fa)) {
+    // Error too large.
+    // Set moves probabilities according to their relative amount of visits.
+    size_t i = 0;
+    for (const auto& child : root_node_->Edges()) {
+       pibar[i++] = total_n > 0 ? child.GetN() / static_cast<float>(total_n) : 1;
+    }
+  } else {
+    for (size_t i = 0; i < root_moves; i++) {
+      pibar[i] = lambdan * root_unnoised_p[i] / ((1.0f - fa) * (a - root_q[i]));
+    }
+  }
+  return {pibar, root_unnoised_moves_};
+}
+
 // Computes the best move, maybe with temperature (according to the settings).
 void Search::EnsureBestMoveKnown() REQUIRES(nodes_mutex_)
     REQUIRES(counters_mutex_) {
@@ -1567,6 +1668,13 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
     edge.edge()->SetP(intermediate[counter++] * scale);
   }
   // Add Dirichlet noise if enabled and at root.
+  if (node == search_->root_node_) {
+    for (const auto& child : node->Edges()) {
+      auto* edge = child.edge();
+      search_->root_unnoised_p_.push_back(edge->GetP());
+      search_->root_unnoised_moves_.push_back(edge->GetMove());
+    }
+  }
   if (params_.GetNoiseEpsilon() && node == search_->root_node_) {
     ApplyDirichletNoise(node, params_.GetNoiseEpsilon(),
                         params_.GetNoiseAlpha());

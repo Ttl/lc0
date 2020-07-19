@@ -96,6 +96,10 @@ class Search {
   // from temperature having been applied again.
   void ResetBestMove();
 
+  // Returns `PiBar` policy training target for root node using unnoised
+  // policies.
+  std::pair<std::vector<float>, std::vector<Move>> GetPiBar(float pibar_temp);
+
  private:
   // Computes the best move, maybe with temperature (according to the settings).
   void EnsureBestMoveKnown();
@@ -195,6 +199,9 @@ class Search {
       GUARDED_BY(nodes_mutex_);
 
   std::unique_ptr<UciResponder> uci_responder_;
+
+  std::vector<float> root_unnoised_p_;
+  std::vector<Move> root_unnoised_moves_;
 
   friend class SearchWorker;
 };
