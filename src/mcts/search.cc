@@ -629,9 +629,12 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
   const float max_q = (*std::max_element(std::begin(root_q), std::end(root_q)));
   // `a` must be larger than max(Q).
   float a0 = max_q + 1e-4f;
-  float a1 = 1.1f * std::abs(max_q);
+  float a1 = 1.2f * std::abs(max_q);
   float f1 = piroot(a1);
+  // Move the right endpoint farther if root is not in the interval.
   while (f1 < 0.0f) {
+    // Move left endpoint to previous right endpoint.
+    a0 = a1;
     a1 *= 1.5f;
     f1 = piroot(a1);
   }
