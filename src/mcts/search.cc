@@ -628,7 +628,7 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
   // Find normalization constant `a` with bisection method.
   const float max_q = (*std::max_element(std::begin(root_q), std::end(root_q)));
   // `a` must be larger than max(Q).
-  float a0 = max_q + 1e-5f;
+  float a0 = max_q + 1e-4f;
   float a1 = 1.1f * std::abs(max_q);
   float f1 = piroot(a1);
   while (f1 < 0.0f) {
@@ -637,11 +637,12 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
   }
 
   // Bisect to reasonable accuracy and normalize to one by dividing by the sum.
+  // Takes around 10 iterations normally.
   float a, fa;
-  while (iterations++ < 40) {
+  while (iterations++ < 30) {
     a = (a0 + a1) / 2.0f;
     fa = piroot(a);
-    if (std::abs(fa) < 5e-3f) break;
+    if (std::abs(fa) < 1e-2f) break;
     if (fa > 0.0f) {
       a1 = a;
     } else {
@@ -651,17 +652,8 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
 
   std::vector<float> pibar(root_moves);
 
-  if (std::abs(fa) > 1e-2f || std::isnan(fa)) {
-    // Error too large.
-    // Set moves probabilities according to their relative amount of visits.
-    size_t i = 0;
-    for (const auto& child : root_node_->Edges()) {
-      pibar[i++] = total_n > 0 ? child.GetN() / static_cast<float>(total_n) : 1;
-    }
-  } else {
-    for (size_t i = 0; i < root_moves; i++) {
-      pibar[i] = lambdan * root_unnoised_p[i] / ((1.0f - fa) * (a - root_q[i]));
-    }
+  for (size_t i = 0; i < root_moves; i++) {
+    pibar[i] = lambdan * root_unnoised_p[i] / ((1.0f - fa) * (a - root_q[i]));
   }
   return {pibar, root_unnoised_moves_};
 }
