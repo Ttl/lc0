@@ -1669,6 +1669,8 @@ void SearchWorker::FetchSingleNodeResult(NodeToProcess* node_to_process,
   }
   // Add Dirichlet noise if enabled and at root.
   if (node == search_->root_node_) {
+    search_->root_unnoised_p_.clear();
+    search_->root_unnoised_moves_.clear();
     for (const auto& child : node->Edges()) {
       auto* edge = child.edge();
       search_->root_unnoised_p_.push_back(edge->GetP());
