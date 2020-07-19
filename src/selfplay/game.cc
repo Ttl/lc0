@@ -57,9 +57,8 @@ const OptionId kMinimumAllowedVistsId{
 const OptionId kUciChess960{
     "chess960", "UCI_Chess960",
     "Castling moves are encoded as \"king takes rook\"."};
-const OptionId kPolicyPiBar{
-    "pibar-learn", "PiBarLearn",
-    "PiBar policy training target."};
+const OptionId kPolicyPiBar{"pibar-learn", "PiBarLearn",
+                            "PiBar policy training target."};
 const OptionId kPiBarTemperature{
     "pibar-softmax-temperature", "PiBarSoftMaxTemperature",
     "PiBar policy training target softmax temperature."};
@@ -152,8 +151,9 @@ void SelfPlayGame::Play(int white_threads, int black_threads, bool training,
       const auto best_wl = best_eval.wl;
       const auto best_d = best_eval.d;
       const auto best_m = best_eval.ml;
-      const auto pibar_temp = options_[idx].uci_options->Get<float>(kPiBarTemperature)
-        / search_->GetParams().GetPolicySoftmaxTemp();
+      const auto pibar_temp =
+          options_[idx].uci_options->Get<float>(kPiBarTemperature) /
+          search_->GetParams().GetPolicySoftmaxTemp();
       const auto input_format =
           options_[idx].network->GetCapabilities().input_format;
       const auto pibar = search_->GetPiBar(pibar_temp);
@@ -316,7 +316,8 @@ std::unique_ptr<ChainedSearchStopper> SelfPlayLimits::MakeSearchStopper()
     const {
   auto result = std::make_unique<ChainedSearchStopper>();
 
-  // always set VisitsStopper to avoid exceeding the limit 4000000000, the default value when visits = 0
+  // always set VisitsStopper to avoid exceeding the limit 4000000000, the
+  // default value when visits = 0
   result->AddStopper(std::make_unique<VisitsStopper>(visits, false));
   if (playouts >= 0) {
     result->AddStopper(std::make_unique<PlayoutsStopper>(playouts, false));

@@ -565,7 +565,8 @@ void Search::ResetBestMove() {
   bestmove_is_sent_ = old_sent;
 }
 
-std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(float pibar_temp) {
+std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
+    float pibar_temp) {
   const size_t root_moves = root_unnoised_p_.size();
   assert(root_unnoised_moves.size() == root_moves);
 
@@ -635,8 +636,7 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(float pibar_te
     f1 = piroot(a1);
   }
 
-  // Bisect to reasonable accuracy and normalize to one by dividing by the
-  // sum.
+  // Bisect to reasonable accuracy and normalize to one by dividing by the sum.
   float a, fa;
   while (iterations++ < 40) {
     a = (a0 + a1) / 2.0f;
@@ -656,7 +656,7 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(float pibar_te
     // Set moves probabilities according to their relative amount of visits.
     size_t i = 0;
     for (const auto& child : root_node_->Edges()) {
-       pibar[i++] = total_n > 0 ? child.GetN() / static_cast<float>(total_n) : 1;
+      pibar[i++] = total_n > 0 ? child.GetN() / static_cast<float>(total_n) : 1;
     }
   } else {
     for (size_t i = 0; i < root_moves; i++) {

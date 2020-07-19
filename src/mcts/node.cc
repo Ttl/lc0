@@ -232,8 +232,7 @@ std::string Node::DebugString() const {
       << " WL:" << wl_ << " N:" << n_ << " N_:" << n_in_flight_
       << " Edges:" << static_cast<int>(num_edges_)
       << " Bounds:" << static_cast<int>(lower_bound_) - 2 << ","
-      << static_cast<int>(upper_bound_) - 2
-      << " Solid:" << solid_children_;
+      << static_cast<int>(upper_bound_) - 2 << " Solid:" << solid_children_;
   return oss.str();
 }
 
@@ -270,7 +269,8 @@ bool Node::MakeSolid() {
   while (old_child) {
     int index = old_child->index_;
     new_children[index] = std::move(*old_child.get());
-    // This isn't needed, but it helps crash things faster if something has gone wrong.
+    // This isn't needed, but it helps crash things faster if something has gone
+    // wrong.
     old_child->parent_ = nullptr;
     gNodeGc.AddToGcQueue(std::move(old_child));
     new_children[index].UpdateChildrenParents();
@@ -484,8 +484,7 @@ V5TrainingData Node::GetV5TrainingData(
     }
   } else {
     for (size_t i = 0; i < pibar_moves.size(); i++) {
-      result.probabilities[pibar_moves[i].as_nn_index(transform)] =
-          pibar_p[i];
+      result.probabilities[pibar_moves[i].as_nn_index(transform)] = pibar_p[i];
     }
   }
 
