@@ -575,12 +575,18 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
   const size_t total_n = root_node_->GetChildrenVisits();
   const float draw_score = GetDrawScore(/* is_odd_depth= */ false);
 
+  const auto m_evaluator = network_->GetCapabilities().has_mlh()
+                               ? MEvaluator(params_, root_node_)
+                               : MEvaluator();
+
+  const float q = root_node_->GetQ(draw_score);
   // Populate Q in same order as p.
   for (size_t i = 0; i < root_moves; i++) {
     for (const auto& child : root_node_->Edges()) {
       if (child.edge()->GetMove() != root_unnoised_moves_[i]) continue;
       // Unvisited nodes are treated as losses.
-      root_q.push_back(child.GetQ(-1.0f, draw_score));
+      const auto m = m_evaluator.GetM(child, q);
+      root_q.push_back(child.GetQ(-1.0f, draw_score) + m);
       break;
     }
   }
@@ -613,7 +619,8 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
     root_unnoised_p[i] = total_n > 0 ? p : 1.0f;
   }
 
-  const float lambdan = std::sqrt(total_n) / (root_moves + total_n);
+  const float lambdan =
+      total_n > 0 ? std::sqrt(total_n) / (root_moves + total_n) : 1.0f;
   int iterations = 0;
 
   // `1 - Pibar` function for root finding.
