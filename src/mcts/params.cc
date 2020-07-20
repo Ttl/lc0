@@ -270,6 +270,10 @@ const OptionId SearchParams::kSolidTreeThresholdId{
     "solid-tree-threshold", "SolidTreeThreshold",
     "Only nodes with at least this number of visits will be considered for "
     "solidification for improved cache locality."};
+const OptionId SearchParams::kPiBarAct{
+    "pibar-act", "PiBarAct",
+    "Sample chosen move according to pibar when using temperature."};
+
 
 void SearchParams::Populate(OptionsParser* options) {
   // Here the uci optimized defaults" are set.
@@ -335,6 +339,7 @@ void SearchParams::Populate(OptionsParser* options) {
   options->Add<IntOption>(kDrawScoreBlackId, -100, 100) = 0;
   options->Add<FloatOption>(kNpsLimitId, 0.0f, 1e6f) = 0.0f;
   options->Add<IntOption>(kSolidTreeThresholdId, 1, 2000000000) = 100;
+  options->Add<BoolOption>(kPiBarAct) = false;
 
   options->HideOption(kNoiseEpsilonId);
   options->HideOption(kNoiseAlphaId);
@@ -348,6 +353,7 @@ void SearchParams::Populate(OptionsParser* options) {
   options->HideOption(kTemperatureEndgameId);
   options->HideOption(kTemperatureWinpctCutoffId);
   options->HideOption(kTemperatureVisitOffsetId);
+  options->HideOption(kPiBarAct);
 }
 
 SearchParams::SearchParams(const OptionsDict& options)

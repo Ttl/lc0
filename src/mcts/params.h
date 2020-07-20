@@ -110,6 +110,7 @@ class SearchParams {
   int GetMaxOutOfOrderEvals() const { return kMaxOutOfOrderEvals; }
   float GetNpsLimit() const { return kNpsLimit; }
   int GetSolidTreeThreshold() const { return kSolidTreeThreshold; }
+  bool GetPiBarAct() const { return options_.Get<bool>(kPiBarAct); }
 
   // Search parameter IDs.
   static const OptionId kMiniBatchSizeId;
@@ -162,6 +163,7 @@ class SearchParams {
   static const OptionId kMaxOutOfOrderEvalsId;
   static const OptionId kNpsLimitId;
   static const OptionId kSolidTreeThresholdId;
+  static const OptionId kPiBarAct;
 
  private:
   const OptionsDict& options_;

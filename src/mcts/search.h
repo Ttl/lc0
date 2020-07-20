@@ -98,7 +98,7 @@ class Search {
 
   // Returns `PiBar` policy training target for root node using unnoised
   // policies.
-  std::pair<std::vector<float>, std::vector<Move>> GetPiBar(float pibar_temp);
+  std::pair<std::vector<float>, std::vector<Move>> GetPiBar(float pibar_temp) const;
 
  private:
   // Computes the best move, maybe with temperature (according to the settings).
@@ -111,6 +111,8 @@ class Search {
   std::vector<EdgeAndNode> GetBestChildrenNoTemperature(Node* parent, int count,
                                                         int depth) const;
   EdgeAndNode GetBestRootChildWithTemperature(float temperature) const;
+  EdgeAndNode GetBestRootChildWithTemperaturePiBar(float temperature) const;
+
 
   int64_t GetTimeSinceStart() const;
   int64_t GetTimeSinceFirstBatch() const;

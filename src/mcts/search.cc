@@ -566,9 +566,25 @@ void Search::ResetBestMove() {
 }
 
 std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
-    float pibar_temp) {
-  const size_t root_moves = root_unnoised_p_.size();
+    float pibar_temp) const {
+  std::vector<float> root_unnoised_p;
+  std::vector<Move> root_unnoised_moves;
+  // Use unnoised root if it exists.
+  if (root_unnoised_moves_.size() == 0) {
+    for (const auto& child : root_node_->Edges()) {
+      auto* edge = child.edge();
+      root_unnoised_p.push_back(edge->GetP());
+      root_unnoised_moves.push_back(edge->GetMove());
+    }
+  } else {
+    std::copy(root_unnoised_moves_.begin(), root_unnoised_moves_.end(),
+              std::back_inserter(root_unnoised_moves));
+    std::copy(root_unnoised_p_.begin(), root_unnoised_p_.end(),
+              std::back_inserter(root_unnoised_p));
+  }
+  const size_t root_moves = root_unnoised_p.size();
   assert(root_unnoised_moves.size() == root_moves);
+  assert(root_unnoised_moves.size() > 0);
 
   std::vector<float> root_q;
 
@@ -583,7 +599,7 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
   // Populate Q in same order as p.
   for (size_t i = 0; i < root_moves; i++) {
     for (const auto& child : root_node_->Edges()) {
-      if (child.edge()->GetMove() != root_unnoised_moves_[i]) continue;
+      if (child.edge()->GetMove() != root_unnoised_moves[i]) continue;
       // Unvisited nodes are treated as losses.
       const auto m = m_evaluator.GetM(child, q);
       root_q.push_back(child.GetQ(-1.0f, draw_score) + m);
@@ -599,7 +615,7 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
   // There are never more than 256 valid legal moves in any legal position.
   std::array<float, 256> intermediate;
   for (size_t i = 0; i < root_moves; i++) {
-    float p = root_unnoised_p_[i];
+    float p = root_unnoised_p[i];
     intermediate[i] = p;
     max_p = std::max(max_p, p);
   }
@@ -613,7 +629,6 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
   }
   // Normalize P values to add up to 1.0.
   const float scale = total > 0.0f ? 1.0f / total : 1.0f;
-  std::vector<float> root_unnoised_p(root_moves);
   for (size_t i = 0; i < root_moves; i++) {
     float p = intermediate[i] * scale;
     root_unnoised_p[i] = total_n > 0 ? p : 1.0f;
@@ -667,7 +682,7 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
   for (size_t i = 0; i < root_moves; i++) {
     pibar[i] = lambdan * root_unnoised_p[i] / ((1.0f - fa) * (a - root_q[i]));
   }
-  return {pibar, root_unnoised_moves_};
+  return {pibar, root_unnoised_moves};
 }
 
 // Computes the best move, maybe with temperature (according to the settings).
@@ -809,7 +824,62 @@ EdgeAndNode Search::GetBestChildNoTemperature(Node* parent, int depth) const {
 
 // Returns a child of a root chosen according to weighted-by-temperature visit
 // count.
+EdgeAndNode Search::GetBestRootChildWithTemperaturePiBar(float temperature) const {
+  // Root is at even depth.
+  const auto pibar = GetPiBar(1.0f);
+  const auto pibar_p = pibar.first;
+  const auto pibar_moves = pibar.second;
+
+  float sum = 0.0;
+  std::vector<float> cumulative_sums;
+  for (size_t i = 0; i < pibar_moves.size(); i++) {
+    if (!root_move_filter_.empty() &&
+        std::find(root_move_filter_.begin(), root_move_filter_.end(),
+                  pibar_moves[i]) == root_move_filter_.end()) {
+      continue;
+    }
+    sum += std::pow(pibar_p[i], 1.0f / temperature);
+    cumulative_sums.push_back(sum);
+  }
+
+  // All moves filtered out!?
+  if (sum == 0.0f) return GetBestChildNoTemperature(root_node_, 0);
+
+  const float toss = Random::Get().GetFloat(cumulative_sums.back());
+  size_t idx =
+      std::lower_bound(cumulative_sums.begin(), cumulative_sums.end(), toss) -
+      cumulative_sums.begin();
+
+  assert(idx < pibar_moves.size());
+
+  Move chosen_move;
+  for (size_t i = 0; i < pibar_moves.size(); i++) {
+    if (!root_move_filter_.empty() &&
+        std::find(root_move_filter_.begin(), root_move_filter_.end(),
+                  pibar_moves[i]) == root_move_filter_.end()) {
+      continue;
+    }
+    chosen_move = pibar_moves[i];
+    if (idx-- == 0) {
+      break;
+    }
+  }
+  for (auto edge : root_node_->Edges()) {
+    if (edge.GetMove() == chosen_move) {
+      return edge;
+    }
+  }
+  assert(false);
+  return {};
+}
+
+// Returns a child of a root chosen according to weighted-by-temperature visit
+// count.
 EdgeAndNode Search::GetBestRootChildWithTemperature(float temperature) const {
+
+  if (params_.GetPiBarAct()) {
+    return GetBestRootChildWithTemperaturePiBar(temperature);
+  }
   // Root is at even depth.
   const float draw_score = GetDrawScore(/* is_odd_depth= */ false);
 
