@@ -621,7 +621,6 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
 
   const float lambdan =
       total_n > 0 ? std::sqrt(total_n) / (root_moves + total_n) : 1.0f;
-  int iterations = 0;
 
   // `1 - Pibar` function for root finding.
   auto piroot = [&lambdan, &root_unnoised_p, &root_q, &root_moves](float a) {
@@ -636,19 +635,22 @@ std::pair<std::vector<float>, std::vector<Move>> Search::GetPiBar(
   const float max_q = (*std::max_element(std::begin(root_q), std::end(root_q)));
   // `a` must be larger than max(Q).
   float a0 = max_q + 1e-4f;
-  float a1 = 1.2f * std::abs(max_q);
+  float a1 = 1.2f * std::abs(a0);
   float f1 = piroot(a1);
   // Move the right endpoint farther if root is not in the interval.
   while (f1 < 0.0f) {
     // Move left endpoint to previous right endpoint.
     a0 = a1;
     a1 *= 1.5f;
+    // Add also a small value in case max_q is close to 0.
+    a1 += 0.01f;
     f1 = piroot(a1);
   }
 
   // Bisect to reasonable accuracy and normalize to one by dividing by the sum.
   // Takes around 10 iterations normally.
   float a, fa;
+  int iterations = 0;
   while (iterations++ < 30) {
     a = (a0 + a1) / 2.0f;
     fa = piroot(a);
